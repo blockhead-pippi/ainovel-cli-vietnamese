@@ -1,0 +1,1561 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AInovel Studio — Sáng Tác Tiểu Thuyết Tự Động Bằng AI</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300&family=JetBrains+Mono:wght@400;500&display=swap');
+    
+    :root {
+      --font-ui: 'Plus Jakarta Sans', sans-serif;
+      --font-reader: 'Merriweather', serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+    
+    body {
+      font-family: var(--font-ui);
+    }
+    
+    .font-reader {
+      font-family: var(--font-reader);
+    }
+    
+    .font-mono {
+      font-family: var(--font-mono);
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.6);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(71, 85, 105, 0.6);
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(100, 116, 139, 0.8);
+    }
+
+    .cursor-blink::after {
+      content: '▋';
+      display: inline-block;
+      margin-left: 2px;
+      animation: blink 1s step-end infinite;
+      color: #38bdf8;
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 h-screen flex flex-col overflow-hidden select-none">
+
+  <!-- TOP BAR -->
+  <header class="h-14 bg-slate-900 border-b border-slate-800 px-4 flex items-center justify-between shrink-0 z-20">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-amber-500 to-indigo-600 flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/20">
+        <i class="fa-solid fa-feather-pointed text-sm"></i>
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="font-bold text-sm tracking-wide text-white" id="novel-title">Chưa có tác phẩm</span>
+          <span class="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700" id="badge-style">Mặc định</span>
+        </div>
+        <div class="text-[11px] text-slate-400 flex items-center gap-2">
+          <span id="provider-info"><i class="fa-solid fa-server mr-1 text-slate-500"></i><span id="lbl-provider">OpenRouter</span></span>
+          <span>•</span>
+          <span id="model-info" class="text-indigo-400 font-mono">deepseek-v4.1-flash</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center status -->
+    <div class="hidden md:flex items-center gap-4">
+      <div class="flex items-center gap-2 bg-slate-950/80 px-3.5 py-1.5 rounded-full border border-slate-800">
+        <span class="relative flex h-2.5 w-2.5">
+          <span class="absolute inline-flex h-full w-full rounded-full bg-slate-500 opacity-75" id="status-ping"></span>
+          <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-slate-400" id="status-dot"></span>
+        </span>
+        <span class="text-xs font-semibold uppercase tracking-wider text-slate-300" id="status-text">Sẵn sàng</span>
+        <span class="text-slate-700 text-xs">|</span>
+        <span class="text-xs text-slate-400 font-medium" id="flow-text">Chờ khởi tạo</span>
+      </div>
+    </div>
+
+    <!-- Right Controls -->
+    <div class="flex items-center gap-2">
+      <!-- NÚT MENU DANH SÁCH TRUYỆN -->
+      <button onclick="openStoriesModal()" class="text-xs px-3 py-1.5 rounded-md border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center gap-1.5 transition shadow-sm">
+        <i class="fa-solid fa-book-bookmark text-amber-400"></i>
+        <span class="font-semibold">Danh sách truyện</span>
+        <span id="badge-story-count" class="px-1.5 py-0.2 rounded-full bg-slate-900 border border-slate-700 text-[10px] text-slate-400">0</span>
+      </button>
+
+      <!-- NÚT CẤU HÌNH API & MODEL -->
+      <button onclick="openConfigModal()" class="text-xs px-3 py-1.5 rounded-md border border-indigo-500/40 bg-indigo-950/40 hover:bg-indigo-900/50 text-indigo-300 flex items-center gap-1.5 transition shadow-sm">
+        <i class="fa-solid fa-key text-amber-400"></i>
+        <span class="font-semibold">Cấu hình API</span>
+        <span id="badge-key-status" class="w-2 h-2 rounded-full bg-emerald-400" title="API Key đã cấu hình"></span>
+      </button>
+
+      <button id="btn-pause" onclick="handlePauseContinue()" class="text-xs px-3 py-1.5 rounded-md bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700 flex items-center gap-1.5 transition">
+        <i class="fa-solid fa-pause"></i>
+        <span id="btn-pause-text">Tạm dừng</span>
+      </button>
+
+      <button onclick="openExportModal()" class="text-xs px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-medium flex items-center gap-1.5 transition">
+        <i class="fa-solid fa-file-export text-slate-400"></i>
+        <span>Xuất truyện</span>
+      </button>
+
+      <button onclick="openNewNovelModal()" class="text-xs px-3 py-1.5 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white font-medium flex items-center gap-1.5 shadow-md shadow-indigo-600/30 transition">
+        <i class="fa-solid fa-plus"></i>
+        <span>Truyện mới</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN 3-PANEL BODY -->
+  <main class="flex-1 flex overflow-hidden">
+
+    <!-- LEFT SIDEBAR: Status & Agents & Usage (280px) -->
+    <aside class="w-72 bg-slate-900/60 border-r border-slate-800 flex flex-col shrink-0 overflow-y-auto">
+      <div class="p-3.5 space-y-4">
+
+        <!-- Card Tổng quan tiến độ -->
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 shadow-sm">
+          <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
+            <span>Tiến độ sáng tác</span>
+            <i class="fa-solid fa-chart-pie text-slate-500"></i>
+          </div>
+          
+          <div class="grid grid-cols-2 gap-2 mb-3">
+            <div class="bg-slate-950 p-2 rounded-lg border border-slate-800/80">
+              <div class="text-[10px] text-slate-400">Đã hoàn thành</div>
+              <div class="text-lg font-bold text-emerald-400" id="stat-completed-chapters">0 <span class="text-xs text-slate-500 font-normal">chương</span></div>
+            </div>
+            <div class="bg-slate-950 p-2 rounded-lg border border-slate-800/80">
+              <div class="text-[10px] text-slate-400">Tổng số từ</div>
+              <div class="text-lg font-bold text-amber-400" id="stat-total-words">0</div>
+            </div>
+          </div>
+
+          <div class="space-y-1.5 text-xs">
+            <div class="flex justify-between text-slate-400">
+              <span>Giai đoạn:</span>
+              <span class="text-slate-300 font-medium" id="stat-phase">Chưa bắt đầu</span>
+            </div>
+            <div class="flex justify-between text-slate-400">
+              <span>Cung truyện:</span>
+              <span class="text-slate-400 font-medium" id="stat-volume-arc">Tập 1</span>
+            </div>
+            <div class="flex justify-between text-slate-400">
+              <span>Đang tiến hành:</span>
+              <span class="text-indigo-400 font-semibold" id="stat-in-progress">-</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card Đa Agent tự chủ -->
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 shadow-sm">
+          <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
+            <span>Đội ngũ Agent</span>
+            <i class="fa-solid fa-robot text-slate-500"></i>
+          </div>
+
+          <div class="space-y-2" id="agents-container">
+            <!-- Coordinator -->
+            <div class="flex items-center justify-between p-2 rounded-lg bg-slate-950 border border-slate-800/80">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-slate-600" id="agent-dot-coordinator"></span>
+                <div>
+                  <div class="text-xs font-bold text-slate-300">Điều phối viên</div>
+                  <div class="text-[10px] text-slate-500" id="agent-sub-coordinator">Chờ lệnh</div>
+                </div>
+              </div>
+              <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 font-mono" id="agent-badge-coordinator">Idle</span>
+            </div>
+
+            <!-- Architect -->
+            <div class="flex items-center justify-between p-2 rounded-lg bg-slate-950 border border-slate-800/80">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-slate-600" id="agent-dot-architect"></span>
+                <div>
+                  <div class="text-xs font-bold text-slate-300">Kiến trúc sư</div>
+                  <div class="text-[10px] text-slate-500" id="agent-sub-architect">Đề cương & Nhân vật</div>
+                </div>
+              </div>
+              <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 font-mono" id="agent-badge-architect">Idle</span>
+            </div>
+
+            <!-- Writer -->
+            <div class="flex items-center justify-between p-2 rounded-lg bg-slate-950 border border-slate-800/80">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-slate-600" id="agent-dot-writer"></span>
+                <div>
+                  <div class="text-xs font-bold text-slate-300">Người viết</div>
+                  <div class="text-[10px] text-slate-500" id="agent-sub-writer">Soạn thảo chương</div>
+                </div>
+              </div>
+              <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 font-mono" id="agent-badge-writer">Idle</span>
+            </div>
+
+            <!-- Editor -->
+            <div class="flex items-center justify-between p-2 rounded-lg bg-slate-950 border border-slate-800/80">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-slate-600" id="agent-dot-editor"></span>
+                <div>
+                  <div class="text-xs font-bold text-slate-300">Biên tập viên</div>
+                  <div class="text-[10px] text-slate-500" id="agent-sub-editor">Đánh giá 7 chiều</div>
+                </div>
+              </div>
+              <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 font-mono" id="agent-badge-editor">Idle</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card Token & Chi phí -->
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 shadow-sm">
+          <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
+            <span>Chi phí & Bộ nhớ đệm</span>
+            <i class="fa-solid fa-coins text-slate-500"></i>
+          </div>
+
+          <div class="space-y-2 text-xs">
+            <div class="flex justify-between items-center">
+              <span class="text-slate-400">Tổng chi phí:</span>
+              <span class="font-bold text-emerald-400 font-mono" id="stat-cost">$0.0000</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-slate-400">Tiết kiệm (Cache):</span>
+              <span class="font-bold text-indigo-400 font-mono" id="stat-saved">$0.0000</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-slate-400">Trạng thái:</span>
+              <span class="font-bold text-amber-300 font-mono" id="stat-cache-hit">Online</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </aside>
+
+    <!-- CENTER PANEL: Live Stream & Activity Log & Steer (Flex 1) -->
+    <section class="flex-1 flex flex-col min-w-0 bg-slate-950 border-r border-slate-800">
+      
+      <!-- Nav Tabs for Center Panel -->
+      <div class="h-10 bg-slate-900/40 border-b border-slate-800 px-4 flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-1">
+          <button id="tab-live-btn" onclick="switchCenterTab('live')" class="px-3 py-1 text-xs font-medium rounded-md transition text-indigo-300 bg-slate-800 border border-slate-700/80 flex items-center gap-1.5">
+            <i class="fa-solid fa-bolt text-indigo-400"></i>
+            <span>Đầu ra trực tiếp (Live Stream)</span>
+          </button>
+          <button id="tab-log-btn" onclick="switchCenterTab('log')" class="px-3 py-1 text-xs font-medium rounded-md transition text-slate-400 hover:text-slate-200 hover:bg-slate-900 flex items-center gap-1.5">
+            <i class="fa-solid fa-list-check text-slate-500"></i>
+            <span>Nhật ký sự kiện (Activity)</span>
+            <span class="text-[10px] px-1 rounded-full bg-slate-800 text-slate-400" id="badge-event-count">0</span>
+          </button>
+        </div>
+
+        <div class="flex items-center gap-2 text-xs">
+          <label class="flex items-center gap-1.5 text-slate-400 cursor-pointer hover:text-slate-200">
+            <input type="checkbox" id="auto-scroll-chk" checked class="rounded bg-slate-800 border-slate-700 text-indigo-600 focus:ring-0">
+            <span>Tự cuộn</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- VIEW 1: Live Stream Content -->
+      <div id="view-live" class="flex-1 overflow-y-auto p-4 space-y-4">
+        <!-- Thinking block -->
+        <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3.5 space-y-2">
+          <div class="flex items-center justify-between text-xs font-medium text-slate-400">
+            <div class="flex items-center gap-2">
+              <i class="fa-solid fa-brain text-amber-400"></i>
+              <span class="font-semibold text-slate-300">Quá trình suy nghĩ (Reasoning)</span>
+            </div>
+            <span class="text-[10px] text-indigo-400 font-mono px-2 py-0.5 rounded bg-indigo-950/60 border border-indigo-900/60" id="thinking-badge">Sẵn sàng</span>
+          </div>
+          <div class="text-xs text-slate-400 italic leading-relaxed pl-3 border-l-2 border-amber-500/40 whitespace-pre-wrap max-h-48 overflow-y-auto" id="thinking-content">
+            Chưa có tiến trình hoạt động. Hãy nhấn "Truyện mới" hoặc chọn từ "Danh sách truyện" để bắt đầu sáng tác.
+          </div>
+        </div>
+
+        <!-- Generated Novel Text Stream -->
+        <div class="rounded-xl border border-slate-800 bg-slate-900/90 p-5 shadow-inner min-h-[300px]">
+          <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-800/80">
+            <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2" id="stream-chapter-title">
+              <span class="text-indigo-400">Bản thảo:</span> <span id="lbl-chapter-name">Chưa có nội dung</span>
+            </h3>
+            <span class="text-[10px] text-slate-400 font-mono" id="stream-words-count">0 từ</span>
+          </div>
+          
+          <div class="font-reader text-slate-200 leading-relaxed text-sm space-y-3" id="stream-text-content">
+            <div class="text-center py-16 text-slate-500 space-y-3">
+              <i class="fa-solid fa-book-open text-4xl text-slate-700"></i>
+              <p class="text-sm font-medium text-slate-400">Chưa có bản thảo đang mở</p>
+              <p class="text-xs text-slate-500 max-w-sm mx-auto">Vui lòng mở <strong>"Danh sách truyện"</strong> để chọn tác phẩm có sẵn, hoặc nhấn <strong>"Truyện mới"</strong>.</p>
+              <div class="flex justify-center gap-2 pt-2">
+                <button onclick="openStoriesModal()" class="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-amber-300 border border-slate-700 transition">
+                  <i class="fa-solid fa-book-bookmark mr-1"></i> Danh sách truyện
+                </button>
+                <button onclick="openNewNovelModal()" class="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs text-white font-medium transition shadow-sm">
+                  <i class="fa-solid fa-plus mr-1"></i> Bắt đầu truyện mới
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW 2: Activity Log Timeline (Hidden by default) -->
+      <div id="view-log" class="hidden flex-1 overflow-y-auto p-4 space-y-2 font-mono text-xs">
+        <div class="space-y-1.5" id="event-timeline-container">
+          <div class="flex items-start gap-2 p-2 rounded bg-slate-900 border border-slate-800">
+            <span class="text-slate-500 text-[10px]">Ready</span>
+            <span class="px-1.5 py-0.2 rounded bg-purple-950 text-purple-300 font-bold text-[10px]">SYSTEM</span>
+            <span class="text-slate-400">Studio đã sẵn sàng. Vui lòng cấu hình API key và tạo tác phẩm mới.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- BOTTOM STEER INPUT BOX -->
+      <div class="p-3 bg-slate-900/90 border-t border-slate-800 shrink-0">
+        <div class="flex items-center justify-between text-[11px] text-slate-400 mb-1.5 px-1">
+          <span class="flex items-center gap-1.5 text-indigo-400 font-medium">
+            <i class="fa-solid fa-headset"></i> Can thiệp thời gian thực (Real-time Steering)
+          </span>
+          <span class="text-slate-500 text-[10px]">Gửi chỉ thị cho AI bất kỳ lúc nào mà không cần tạm dừng</span>
+        </div>
+
+        <div class="relative flex items-center">
+          <textarea id="steer-input" rows="1" placeholder="Nhập chỉ dẫn cho AI (ví dụ: 'thêm phân cảnh họp căng thẳng', 'tập trung vào tâm lý nhân vật', 'kết chương có nút thắt bất ngờ')..." 
+                    class="w-full bg-slate-950 text-slate-100 placeholder-slate-500 text-xs rounded-lg px-3 py-2.5 pr-20 border border-slate-700 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 resize-none"></textarea>
+          <button onclick="submitSteer()" class="absolute right-2 px-3 py-1.5 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium flex items-center gap-1 shadow transition">
+            <span>Gửi</span>
+            <i class="fa-solid fa-paper-plane text-[10px]"></i>
+          </button>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-1.5 mt-2">
+          <span class="text-[10px] text-slate-500">Gợi ý nhanh:</span>
+          <button onclick="fillSteer('Tăng thêm yếu tố kịch tính và đàm phán thương trường dồn dập')" class="text-[10px] px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">Kịch tính hơn</button>
+          <button onclick="fillSteer('Miêu tả sâu sắc ký ức và xung đột nội tâm của nhân vật')" class="text-[10px] px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">Đào sâu tâm lý</button>
+          <button onclick="fillSteer('Gài phục bút về một thế lực giấu mặt')" class="text-[10px] px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">Gài phục bút</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT PANEL: Outline, Characters, Reader, Reviews (340px) -->
+    <aside class="w-80 bg-slate-900/60 flex flex-col shrink-0 overflow-hidden">
+      <!-- Right Tabs -->
+      <div class="h-10 bg-slate-900/80 border-b border-slate-800 px-2 flex items-center gap-1 shrink-0">
+        <button id="rtab-outline-btn" onclick="switchRightTab('outline')" class="px-2.5 py-1 text-xs font-medium rounded-md text-indigo-300 bg-slate-800 border border-slate-700">Đề cương</button>
+        <button id="rtab-reader-btn" onclick="switchRightTab('reader')" class="px-2.5 py-1 text-xs font-medium rounded-md text-slate-400 hover:text-slate-200">Đọc truyện</button>
+        <button id="rtab-chars-btn" onclick="switchRightTab('chars')" class="px-2.5 py-1 text-xs font-medium rounded-md text-slate-400 hover:text-slate-200">Nhân vật</button>
+        <button id="rtab-reviews-btn" onclick="switchRightTab('reviews')" class="px-2.5 py-1 text-xs font-medium rounded-md text-slate-400 hover:text-slate-200">Đánh giá</button>
+      </div>
+
+      <!-- TAB 1: OUTLINE -->
+      <div id="rview-outline" class="flex-1 overflow-y-auto p-3 space-y-2">
+        <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
+          <span>Danh sách chương</span>
+          <span class="text-[10px] text-slate-500 font-mono" id="lbl-outline-count">0 chương</span>
+        </div>
+
+        <div class="space-y-1.5" id="outline-list-container">
+          <div class="p-6 text-center text-slate-500 text-xs">
+            <i class="fa-solid fa-list-ol text-2xl text-slate-700 mb-2 block"></i>
+            Chưa có đề cương chương.<br>Kiến trúc sư sẽ tự động tạo đề cương khi bắt đầu viết.
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 2: READER -->
+      <div id="rview-reader" class="hidden flex-1 overflow-y-auto p-4 font-reader text-slate-300 text-sm leading-relaxed space-y-4">
+        <div class="border-b border-slate-800 pb-2">
+          <h2 class="text-base font-bold text-slate-100" id="reader-chapter-title">Chưa có chương nào</h2>
+          <div class="text-[11px] text-slate-500 font-mono mt-1" id="reader-meta">0 từ</div>
+        </div>
+        <div id="reader-chapter-body" class="space-y-3 text-slate-400 leading-relaxed text-xs">
+          Khi một chương được hoàn thành và lưu trữ, bạn có thể chọn từ Đề cương để đọc lại toàn văn tại đây.
+        </div>
+      </div>
+
+      <!-- TAB 3: CHARACTERS -->
+      <div id="rview-chars" class="hidden flex-1 overflow-y-auto p-3 space-y-3">
+        <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Hồ sơ nhân vật</div>
+        <div id="chars-list-container" class="space-y-2">
+          <div class="p-6 text-center text-slate-500 text-xs">
+            <i class="fa-solid fa-users text-2xl text-slate-700 mb-2 block"></i>
+            Chưa có hồ sơ nhân vật.<br>AI sẽ tự động thiết lập hệ thống nhân vật phù hợp với cốt truyện.
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 4: REVIEWS -->
+      <div id="rview-reviews" class="hidden flex-1 overflow-y-auto p-3 space-y-3">
+        <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Đánh giá của Biên tập viên</div>
+        <div id="reviews-list-container" class="space-y-2">
+          <div class="p-6 text-center text-slate-500 text-xs">
+            <i class="fa-solid fa-clipboard-check text-2xl text-slate-700 mb-2 block"></i>
+            Chưa có báo cáo đánh giá.<br>Biên tập viên sẽ thẩm định chất lượng sau mỗi chương truyện.
+          </div>
+        </div>
+      </div>
+
+    </aside>
+
+  </main>
+
+  <!-- MODAL: DANH SÁCH TRUYỆN (STORY LIBRARY) VỚI TÙY CHỌN DELETE -->
+  <div id="modal-stories" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 w-full max-w-2xl rounded-2xl p-6 space-y-4 shadow-2xl overflow-y-auto max-h-[85vh]">
+      
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
+            <i class="fa-solid fa-book-bookmark text-sm"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-white">Thư viện Tác phẩm</h3>
+            <p class="text-xs text-slate-400">Quản lý các tiểu thuyết đã sáng tác, chuyển đổi hoặc xóa bỏ</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="openNewNovelModal(); closeStoriesModal();" class="text-xs px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium flex items-center gap-1 shadow">
+            <i class="fa-solid fa-plus text-[10px]"></i>
+            <span>Tạo truyện mới</span>
+          </button>
+          <button onclick="closeStoriesModal()" class="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800">
+            <i class="fa-solid fa-xmark text-lg"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Danh sách truyện render động -->
+      <div id="stories-list-container" class="space-y-2.5">
+        <div class="text-center py-8 text-slate-500 text-xs">
+          <i class="fa-solid fa-spinner fa-spin text-xl mb-2 block"></i>
+          Đang tải danh sách tác phẩm...
+        </div>
+      </div>
+
+      <div class="flex justify-between items-center pt-3 border-t border-slate-800 text-xs text-slate-500">
+        <span>Tác phẩm được lưu trữ trong thư mục: <code>workspace/novels/</code></span>
+        <button onclick="closeStoriesModal()" class="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">Đóng</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODAL: XÁC NHẬN XÓA TÁC PHẨM -->
+  <div id="modal-confirm-delete" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-rose-900/60 w-full max-w-md rounded-2xl p-6 space-y-4 shadow-2xl">
+      <div class="flex items-center gap-3 text-rose-400">
+        <div class="w-10 h-10 rounded-full bg-rose-950/60 border border-rose-800/80 flex items-center justify-center shrink-0">
+          <i class="fa-solid fa-triangle-exclamation text-lg text-rose-400"></i>
+        </div>
+        <div>
+          <h4 class="text-base font-bold text-slate-100">Xác nhận xóa tác phẩm?</h4>
+          <p class="text-xs text-rose-400/90">Hành động này không thể hoàn tác!</p>
+        </div>
+      </div>
+
+      <p class="text-xs text-slate-300 leading-relaxed">
+        Bạn có chắc chắn muốn xóa vĩnh viễn tác phẩm <strong id="delete-story-title" class="text-white font-bold underline"></strong>?
+        Toàn bộ bản thảo các chương, đề cương và hồ sơ nhân vật sẽ bị xóa khỏi máy tính.
+      </p>
+
+      <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+        <button onclick="closeConfirmDeleteModal()" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300">Hủy bỏ</button>
+        <button onclick="executeDeleteStory()" id="btn-confirm-delete" class="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-xs font-bold text-white shadow-lg shadow-rose-600/30 flex items-center gap-1.5">
+          <i class="fa-solid fa-trash-can"></i>
+          <span>Xác nhận xóa</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CẤU HÌNH MODEL & API KEY -->
+  <div id="modal-config" class="hidden fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 w-full max-w-2xl rounded-2xl p-6 space-y-5 shadow-2xl overflow-y-auto max-h-[90vh]">
+      
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-indigo-600/30 border border-indigo-500/40 flex items-center justify-center text-indigo-400">
+            <i class="fa-solid fa-sliders text-sm"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-white">Cấu hình Nhà Cung Cấp & Model AI</h3>
+            <p class="text-xs text-slate-400">Thiết lập API key và model cho hệ thống sáng tác</p>
+          </div>
+        </div>
+        <button onclick="closeConfigModal()" class="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+
+      <div class="space-y-4 text-xs">
+        <div>
+          <label class="block font-semibold text-slate-200 mb-1.5">Nhà cung cấp dịch vụ (Provider)</label>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2" id="provider-selector">
+            <button type="button" onclick="selectProvider('openrouter')" id="pbtn-openrouter" class="p-2.5 rounded-xl border border-indigo-500 bg-indigo-950/40 text-left transition flex flex-col justify-between">
+              <div class="flex items-center justify-between mb-1">
+                <span class="font-bold text-slate-100">OpenRouter</span>
+                <i class="fa-solid fa-star text-[10px] text-amber-400" title="Khuyến nghị"></i>
+              </div>
+              <span class="text-[10px] text-slate-400">Đa dạng model lớn</span>
+            </button>
+
+            <button type="button" onclick="selectProvider('gemini')" id="pbtn-gemini" class="p-2.5 rounded-xl border border-slate-800 bg-slate-950 hover:bg-slate-800 text-left transition flex flex-col justify-between">
+              <div class="font-bold text-slate-200 mb-1">Google Gemini</div>
+              <span class="text-[10px] text-slate-400">Nhanh, context 1M</span>
+            </button>
+
+            <button type="button" onclick="selectProvider('anthropic')" id="pbtn-anthropic" class="p-2.5 rounded-xl border border-slate-800 bg-slate-950 hover:bg-slate-800 text-left transition flex flex-col justify-between">
+              <div class="font-bold text-slate-200 mb-1">Anthropic</div>
+              <span class="text-[10px] text-slate-400">Claude Sonnet 4</span>
+            </button>
+
+            <button type="button" onclick="selectProvider('openai')" id="pbtn-openai" class="p-2.5 rounded-xl border border-slate-800 bg-slate-950 hover:bg-slate-800 text-left transition flex flex-col justify-between">
+              <div class="font-bold text-slate-200 mb-1">OpenAI</div>
+              <span class="text-[10px] text-slate-400">GPT-4o / mini</span>
+            </button>
+
+            <button type="button" onclick="selectProvider('deepseek')" id="pbtn-deepseek" class="p-2.5 rounded-xl border border-slate-800 bg-slate-950 hover:bg-slate-800 text-left transition flex flex-col justify-between">
+              <div class="font-bold text-slate-200 mb-1">DeepSeek</div>
+              <span class="text-[10px] text-slate-400">Rẻ, suy luận tốt</span>
+            </button>
+
+            <button type="button" onclick="selectProvider('ollama')" id="pbtn-ollama" class="p-2.5 rounded-xl border border-slate-800 bg-slate-950 hover:bg-slate-800 text-left transition flex flex-col justify-between">
+              <div class="font-bold text-slate-200 mb-1">Ollama Local</div>
+              <span class="text-[10px] text-slate-400">Offline, miễn phí</span>
+            </button>
+
+            <button type="button" onclick="selectProvider('custom')" id="pbtn-custom" class="p-2.5 rounded-xl border border-slate-800 bg-slate-950 hover:bg-slate-800 text-left transition flex flex-col justify-between">
+              <div class="font-bold text-slate-200 mb-1">Proxy / Tùy chỉnh</div>
+              <span class="text-[10px] text-slate-400">OneAPI, v.v.</span>
+            </button>
+          </div>
+        </div>
+
+        <div id="section-api-key" class="bg-slate-950 border border-slate-800 p-3.5 rounded-xl space-y-2">
+          <div class="flex items-center justify-between">
+            <label class="font-semibold text-slate-200 flex items-center gap-1.5">
+              <span>Khóa bí mật API Key</span>
+              <span id="provider-key-name" class="text-indigo-400 font-mono">(OpenRouter)</span>
+            </label>
+            <a id="link-get-key" href="https://openrouter.ai/keys" target="_blank" class="text-indigo-400 hover:text-indigo-300 text-[11px] flex items-center gap-1">
+              <span>Lấy API Key ở đâu?</span>
+              <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
+            </a>
+          </div>
+
+          <div class="relative flex items-center">
+            <input type="password" id="input-api-key" placeholder="Nhập khóa API key của bạn (ví dụ: sk-or-v1-...)" 
+                   class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 pr-10 text-xs text-slate-100 font-mono focus:outline-none focus:border-indigo-500">
+            <button type="button" onclick="togglePasswordVisibility('input-api-key', 'eye-icon-main')" class="absolute right-3 text-slate-400 hover:text-slate-200">
+              <i class="fa-solid fa-eye" id="eye-icon-main"></i>
+            </button>
+          </div>
+          <p class="text-[11px] text-slate-500" id="hint-api-key">API Key được lưu trữ cục bộ trong file cấu hình <code>~/.ainovel/config.json</code> trên máy tính của bạn.</p>
+        </div>
+
+        <div id="section-base-url" class="space-y-1">
+          <label class="font-semibold text-slate-300">Base URL</label>
+          <input type="text" id="input-base-url" value="https://openrouter.ai/api/v1" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 font-mono">
+        </div>
+
+        <div class="space-y-2">
+          <label class="font-semibold text-slate-200 flex items-center justify-between">
+            <span>Model Mặc định</span>
+            <span class="text-slate-500 font-normal text-[11px]">Dùng chung cho các vai trò nếu chưa cấu hình riêng</span>
+          </label>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div>
+              <span class="block text-[11px] text-slate-400 mb-1">Gợi ý model phổ biến:</span>
+              <select id="select-model-preset" onchange="onModelPresetChange()" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200">
+              </select>
+            </div>
+            <div>
+              <span class="block text-[11px] text-slate-400 mb-1">Tên model chính thức:</span>
+              <input type="text" id="input-model-name" value="deepseek/deepseek-v4.1-flash-1017" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 font-mono focus:border-indigo-500">
+            </div>
+          </div>
+        </div>
+
+        <div class="border border-slate-800 rounded-xl overflow-hidden bg-slate-950">
+          <button type="button" onclick="toggleRoleSettings()" class="w-full p-3 flex items-center justify-between text-left hover:bg-slate-900/60 transition">
+            <div class="flex items-center gap-2">
+              <i class="fa-solid fa-users-gear text-indigo-400"></i>
+              <span class="font-semibold text-slate-200">Cấu hình Model riêng theo từng vai trò (Tùy chọn nâng cao)</span>
+            </div>
+            <i class="fa-solid fa-chevron-down text-slate-400 text-xs transition-transform" id="role-chevron"></i>
+          </button>
+
+          <div id="section-role-settings" class="hidden p-3.5 border-t border-slate-800 space-y-3 bg-slate-900/30">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div class="p-2.5 rounded-lg bg-slate-950 border border-slate-800 space-y-1">
+                <span class="font-semibold text-slate-300 block">Kiến trúc sư (Architect)</span>
+                <span class="text-[10px] text-slate-500 block">Lập đề cương & thế giới</span>
+                <input type="text" id="role-architect-model" placeholder="Mặc định" class="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200 font-mono">
+              </div>
+
+              <div class="p-2.5 rounded-lg bg-slate-950 border border-slate-800 space-y-1">
+                <span class="font-semibold text-slate-300 block">Người viết (Writer)</span>
+                <span class="text-[10px] text-slate-500 block">Soạn thảo văn bản chương</span>
+                <input type="text" id="role-writer-model" placeholder="Mặc định" class="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200 font-mono">
+              </div>
+
+              <div class="p-2.5 rounded-lg bg-slate-950 border border-slate-800 space-y-1">
+                <span class="font-semibold text-slate-300 block">Biên tập viên (Editor)</span>
+                <span class="text-[10px] text-slate-500 block">Đánh giá chất lượng 7 chiều</span>
+                <input type="text" id="role-editor-model" placeholder="Mặc định" class="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200 font-mono">
+              </div>
+
+              <div class="p-2.5 rounded-lg bg-slate-950 border border-slate-800 space-y-1">
+                <span class="font-semibold text-slate-300 block">Điều phối viên (Coordinator)</span>
+                <span class="text-[10px] text-slate-500 block">Điều khiển vòng lặp chính</span>
+                <input type="text" id="role-coordinator-model" placeholder="Mặc định" class="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200 font-mono">
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="flex justify-between items-center pt-3 border-t border-slate-800">
+        <span class="text-[11px] text-slate-500" id="save-status-msg">Cấu hình sẽ được lưu vào ~/.ainovel/config.json</span>
+        <div class="flex gap-2">
+          <button type="button" onclick="closeConfigModal()" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 transition">Đóng</button>
+          <button type="button" onclick="saveConfiguration()" class="px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white shadow-lg shadow-indigo-600/30 transition flex items-center gap-1.5">
+            <i class="fa-solid fa-floppy-disk"></i>
+            <span>Lưu cấu hình</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODAL: TẠO TRUYỆN MỚI -->
+  <div id="modal-new-novel" class="hidden fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 w-full max-w-xl rounded-2xl p-6 space-y-4 shadow-2xl">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i class="fa-solid fa-feather text-amber-400"></i> Bắt đầu sáng tác cuốn tiểu thuyết mới
+        </h3>
+        <button onclick="closeNewNovelModal()" class="text-slate-400 hover:text-white p-1 rounded-lg"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Phong cách tác phẩm (Style)</label>
+          <select id="new-style" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:border-indigo-500">
+            <option value="default">Cân bằng / Đa thể loại (Default)</option>
+            <option value="romance">Ngôn tình / Cung đấu / Tình cảm</option>
+            <option value="fantasy">Kỳ ảo / Tiên hiệp / Kiếm hiệp</option>
+            <option value="suspense">Hồi hộp / Trinh thám / Bí ẩn</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Yêu cầu sáng tác (Prompt)</label>
+          <textarea id="new-prompt" rows="4" placeholder="Nhập ý tưởng hoặc một câu tóm tắt yêu cầu..." 
+                    class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500"></textarea>
+          <p class="text-[11px] text-slate-500 mt-1">AI Coordinator sẽ tự điều phối Kiến trúc sư dựng thế giới quan và cốt truyện.</p>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
+        <button onclick="closeNewNovelModal()" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300">Hủy</button>
+        <button onclick="startNewNovel()" class="px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white shadow-lg shadow-indigo-600/30">Bắt đầu sáng tác</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: XUẤT TRUYỆN -->
+  <div id="modal-export" class="hidden fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl p-6 space-y-4 shadow-2xl">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i class="fa-solid fa-download text-indigo-400"></i> Xuất bản phẩm
+        </h3>
+        <button onclick="closeExportModal()" class="text-slate-400 hover:text-white p-1"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block font-semibold text-slate-300 mb-1">Định dạng file</label>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="flex items-center gap-2 p-3 bg-slate-950 border border-slate-800 rounded-lg cursor-pointer hover:border-indigo-500">
+              <input type="radio" name="export-format" value="txt" checked class="text-indigo-600">
+              <div>
+                <div class="font-bold text-slate-200">Tệp văn bản TXT</div>
+                <div class="text-[10px] text-slate-500">Toàn văn các chương</div>
+              </div>
+            </label>
+            <label class="flex items-center gap-2 p-3 bg-slate-950 border border-slate-800 rounded-lg cursor-pointer hover:border-indigo-500">
+              <input type="radio" name="export-format" value="epub" class="text-indigo-600">
+              <div>
+                <div class="font-bold text-slate-200">Sách điện tử EPUB</div>
+                <div class="text-[10px] text-slate-500">Đọc trên Kindle, Kobo, App</div>
+              </div>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
+        <button onclick="closeExportModal()" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300">Đóng</button>
+        <button onclick="doExport()" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white shadow-lg">Tải xuống ngay</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT LOGIC -->
+  <script>
+    const PROVIDER_METAS = {
+      openrouter: {
+        name: "OpenRouter",
+        keyName: "(OpenRouter)",
+        getKeyUrl: "https://openrouter.ai/keys",
+        baseUrl: "https://openrouter.ai/api/v1",
+        defaultModel: "deepseek/deepseek-v4.1-flash-1017",
+        presets: [
+          { id: "deepseek/deepseek-v4.1-flash-1017", name: "DeepSeek V4.1 Flash (Tốc độ & Suy luận)" },
+          { id: "google/gemini-2.5-flash", name: "Gemini 2.5 Flash (Nhanh & rẻ)" },
+          { id: "anthropic/claude-sonnet-4", name: "Claude Sonnet 4 (Văn phong mượt mà)" },
+          { id: "anthropic/claude-haiku-5.5", name: "Claude Haiku 5.5 (Biên tập cực nhanh)" },
+          { id: "openai/gpt-4o-mini", name: "GPT-4o Mini (Điều phối viên)" }
+        ]
+      },
+      gemini: {
+        name: "Google Gemini",
+        keyName: "(Google AI Studio)",
+        getKeyUrl: "https://aistudio.google.com/app/apikey",
+        baseUrl: "https://generativelanguage.googleapis.com/v1beta",
+        defaultModel: "gemini-2.5-flash",
+        presets: [
+          { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash (Nhanh, context 1M)" },
+          { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro (Mô hình chất lượng cao)" }
+        ]
+      },
+      anthropic: {
+        name: "Anthropic",
+        keyName: "(Anthropic Console)",
+        getKeyUrl: "https://console.anthropic.com/settings/keys",
+        baseUrl: "https://api.anthropic.com",
+        defaultModel: "claude-sonnet-4-6",
+        presets: [
+          { id: "claude-sonnet-4-6", name: "Claude 3.7 / Sonnet 4 (Chất lượng cao nhất)" },
+          { id: "claude-haiku-5.5", name: "Claude Haiku 5.5 (Nhanh nhẹn)" }
+        ]
+      },
+      openai: {
+        name: "OpenAI",
+        keyName: "(OpenAI Platform)",
+        getKeyUrl: "https://platform.openai.com/api-keys",
+        baseUrl: "https://api.openai.com/v1",
+        defaultModel: "gpt-4o-mini",
+        presets: [
+          { id: "gpt-4o", name: "GPT-4o (Đa năng, cân bằng)" },
+          { id: "gpt-4o-mini", name: "GPT-4o Mini (Nhẹ, tốc độ cao)" }
+        ]
+      },
+      deepseek: {
+        name: "DeepSeek",
+        keyName: "(DeepSeek Platform)",
+        getKeyUrl: "https://platform.deepseek.com/api_keys",
+        baseUrl: "https://api.deepseek.com/v1",
+        defaultModel: "deepseek-chat",
+        presets: [
+          { id: "deepseek-chat", name: "DeepSeek V3 (Viết tốt, rất rẻ)" },
+          { id: "deepseek-reasoner", name: "DeepSeek R1 (Tư duy lập luận)" }
+        ]
+      },
+      ollama: {
+        name: "Ollama Local",
+        keyName: "(Ollama Không cần Key)",
+        getKeyUrl: "https://ollama.com",
+        baseUrl: "http://localhost:11434/v1",
+        defaultModel: "gemma4:12b",
+        presets: [
+          { id: "gemma4:12b", name: "Gemma 4 12B (Local nhẹ, chất lượng tốt)" },
+          { id: "qwen3.5:27b", name: "Qwen 2.5 / 3.5 27B (Chất lượng cao, cần RAM)" }
+        ]
+      },
+      custom: {
+        name: "Proxy / Tùy chỉnh",
+        keyName: "(Custom Proxy)",
+        getKeyUrl: "",
+        baseUrl: "https://your-custom-proxy.com/v1",
+        defaultModel: "custom-model",
+        presets: [
+          { id: "custom-model", name: "Custom Model" }
+        ]
+      }
+    };
+
+    let currentConfig = {
+      provider: "openrouter",
+      model: "deepseek/deepseek-v4.1-flash-1017",
+      style: "default",
+      providers: {
+        openrouter: { api_key: "", base_url: "https://openrouter.ai/api/v1", models: [] }
+      },
+      roles: {}
+    };
+
+    let selectedProvider = "openrouter";
+    let isRunning = false;
+    let isPaused = false;
+    let activeStoryId = "";
+    let storyToDeleteId = "";
+    let serverApiBase = window.location.origin.includes('http') ? window.location.origin + '/api' : 'http://localhost:8080/api';
+
+    // Khởi tạo app
+    window.addEventListener('DOMContentLoaded', () => {
+      loadSavedConfig();
+      fetchStoriesList();
+      setInterval(pollServerStatus, 750);
+    });
+
+    async function loadSavedConfig() {
+      try {
+        const res = await fetch(`${serverApiBase}/config`);
+        if (res.ok) {
+          const cfg = await res.json();
+          currentConfig = Object.assign(currentConfig, cfg);
+        }
+      } catch (err) {
+        const local = localStorage.getItem('ainovel_config');
+        if (local) {
+          try { currentConfig = JSON.parse(local); } catch(e){}
+        }
+      }
+      applyConfigToUI();
+    }
+
+    function applyConfigToUI() {
+      const p = currentConfig.provider || "openrouter";
+      const m = currentConfig.model || "deepseek/deepseek-v4.1-flash-1017";
+      selectedProvider = p;
+
+      document.getElementById('lbl-provider').innerText = PROVIDER_METAS[p]?.name || p;
+      document.getElementById('model-info').innerText = m.replace('deepseek/', '').replace('google/', '').replace('openai/', '').replace('anthropic/', '');
+
+      const activeKey = currentConfig.providers?.[p]?.api_key;
+      const keyBadge = document.getElementById('badge-key-status');
+      if (p === 'ollama' || (activeKey && activeKey.trim().length > 5)) {
+        keyBadge.className = 'w-2 h-2 rounded-full bg-emerald-400';
+        keyBadge.title = 'API Key đã được cấu hình';
+      } else {
+        keyBadge.className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse';
+        keyBadge.title = 'Chưa nhập API Key!';
+      }
+    }
+
+    // =========================================================================
+    // QUẢN LÝ DANH SÁCH TRUYỆN (STORY LIBRARY & DELETE)
+    // =========================================================================
+
+    function openStoriesModal() {
+      document.getElementById('modal-stories').classList.remove('hidden');
+      fetchStoriesList();
+    }
+
+    function closeStoriesModal() {
+      document.getElementById('modal-stories').classList.add('hidden');
+    }
+
+    async function fetchStoriesList() {
+      const container = document.getElementById('stories-list-container');
+      try {
+        const res = await fetch(`${serverApiBase}/stories`);
+        if (!res.ok) return;
+        const stories = await res.json();
+        document.getElementById('badge-story-count').innerText = stories.length;
+
+        if (stories.length === 0) {
+          container.innerHTML = `
+            <div class="text-center py-12 text-slate-500 text-xs space-y-2">
+              <i class="fa-solid fa-book-open text-3xl text-slate-700 block"></i>
+              <p>Chưa có tác phẩm nào trong thư viện.</p>
+              <button onclick="openNewNovelModal(); closeStoriesModal();" class="mt-2 px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium">
+                Tạo cuốn đầu tiên ngay
+              </button>
+            </div>
+          `;
+          return;
+        }
+
+        let html = '';
+        stories.forEach(st => {
+          const isActive = st.is_active;
+          const activeBadge = isActive 
+            ? `<span class="px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800 text-[10px] font-bold flex items-center gap-1">
+                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Đang mở
+               </span>`
+            : '';
+
+          html += `
+            <div class="p-3.5 rounded-xl border ${isActive ? 'bg-indigo-950/20 border-indigo-500/50' : 'bg-slate-950 border-slate-800'} flex items-center justify-between transition hover:border-slate-700">
+              <div class="space-y-1 mr-3 overflow-hidden">
+                <div class="flex items-center gap-2">
+                  <h4 class="font-bold text-sm text-slate-100 truncate">${st.title}</h4>
+                  ${activeBadge}
+                  <span class="text-[10px] px-2 py-0.2 rounded bg-slate-800 text-slate-400 border border-slate-700">${st.style || 'default'}</span>
+                </div>
+                <div class="text-[11px] text-slate-400 flex items-center gap-3">
+                  <span><i class="fa-solid fa-list-check mr-1 text-slate-500"></i>${st.completed_count} chương</span>
+                  <span><i class="fa-solid fa-font mr-1 text-slate-500"></i>${st.total_word_count.toLocaleString()} từ</span>
+                  <span><i class="fa-solid fa-clock mr-1 text-slate-500"></i>${st.updated_at}</span>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-1.5 shrink-0">
+                ${!isActive ? `
+                  <button onclick="switchStory('${st.id}')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-indigo-300 font-semibold border border-slate-700 transition flex items-center gap-1">
+                    <i class="fa-solid fa-folder-open text-[11px]"></i>
+                    <span>Mở</span>
+                  </button>
+                ` : `
+                  <span class="px-2.5 py-1 text-xs text-slate-400 font-mono">Active</span>
+                `}
+
+                <a href="${serverApiBase}/export/${st.id}" target="_blank" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs border border-slate-700 transition" title="Tải về file TXT">
+                  <i class="fa-solid fa-download"></i>
+                </a>
+
+                <button onclick="confirmDeleteStory('${st.id}', '${st.title.replace(/'/g, "\\'")}')" class="p-2 rounded-lg bg-rose-950/40 hover:bg-rose-900/60 text-rose-400 hover:text-rose-300 text-xs border border-rose-900/50 transition" title="Xóa tác phẩm này">
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+              </div>
+            </div>
+          `;
+        });
+        container.innerHTML = html;
+      } catch (err) {
+        container.innerHTML = '<p class="text-rose-400 text-xs text-center py-4">Lỗi tải danh sách tác phẩm từ máy chủ.</p>';
+      }
+    }
+
+    async function switchStory(storyId) {
+      try {
+        const res = await fetch(`${serverApiBase}/stories/switch`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: storyId })
+        });
+        if (res.ok) {
+          closeStoriesModal();
+          pollServerStatus();
+        }
+      } catch (err) {
+        alert('Lỗi chuyển đổi tác phẩm!');
+      }
+    }
+
+    function confirmDeleteStory(storyId, storyTitle) {
+      storyToDeleteId = storyId;
+      document.getElementById('delete-story-title').innerText = storyTitle;
+      document.getElementById('modal-confirm-delete').classList.remove('hidden');
+    }
+
+    function closeConfirmDeleteModal() {
+      document.getElementById('modal-confirm-delete').classList.add('hidden');
+      storyToDeleteId = "";
+    }
+
+    async function executeDeleteStory() {
+      if (!storyToDeleteId) return;
+      const btn = document.getElementById('btn-confirm-delete');
+      btn.innerText = "Đang xóa...";
+      btn.disabled = true;
+
+      try {
+        const res = await fetch(`${serverApiBase}/stories/delete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: storyToDeleteId })
+        });
+        if (res.ok) {
+          closeConfirmDeleteModal();
+          fetchStoriesList();
+          pollServerStatus();
+        } else {
+          alert('Không thể xóa tác phẩm. Vui lòng thử lại!');
+        }
+      } catch (err) {
+        alert('Lỗi kết nối máy chủ khi xóa tác phẩm!');
+      } finally {
+        btn.innerHTML = `<i class="fa-solid fa-trash-can"></i><span>Xác nhận xóa</span>`;
+        btn.disabled = false;
+      }
+    }
+
+    // =========================================================================
+    // VÒNG LẶP ĐỒNG BỘ REALTIME TỪ BACKEND
+    // =========================================================================
+
+    async function pollServerStatus() {
+      try {
+        const res = await fetch(`${serverApiBase}/status`);
+        if (!res.ok) return;
+        const s = await res.json();
+        updateUIWithStatus(s);
+      } catch (err) {}
+    }
+
+    function updateUIWithStatus(s) {
+      if (!s) return;
+
+      isRunning = s.isRunning;
+      isPaused = s.isPaused;
+      activeStoryId = s.activeStoryId;
+
+      // Top bar
+      if (s.novelName) {
+        document.getElementById('novel-title').innerText = s.novelName;
+      }
+      if (s.style) {
+        document.getElementById('badge-style').innerText = s.style;
+      }
+
+      const statusText = document.getElementById('status-text');
+      const statusDot = document.getElementById('status-dot');
+      const statusPing = document.getElementById('status-ping');
+      const flowText = document.getElementById('flow-text');
+      const pauseBtnText = document.getElementById('btn-pause-text');
+      const pauseBtn = document.getElementById('btn-pause');
+
+      if (s.isRunning) {
+        if (s.isPaused) {
+          statusText.innerText = "ĐÃ TẠM DỪNG";
+          statusDot.className = "relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500";
+          statusPing.className = "hidden";
+          pauseBtnText.innerText = "Tiếp tục";
+          pauseBtn.className = "text-xs px-3 py-1.5 rounded-md bg-emerald-600/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-600/30 flex items-center gap-1.5 transition";
+        } else {
+          statusText.innerText = "ĐANG CHẠY";
+          statusDot.className = "relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500";
+          statusPing.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75";
+          pauseBtnText.innerText = "Tạm dừng";
+          pauseBtn.className = "text-xs px-3 py-1.5 rounded-md bg-amber-600/20 text-amber-300 border border-amber-500/30 hover:bg-amber-600/30 flex items-center gap-1.5 transition";
+        }
+      } else if (s.phase === "complete") {
+        statusText.innerText = "HOÀN THÀNH";
+        statusDot.className = "relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400";
+        statusPing.className = "hidden";
+      } else {
+        statusText.innerText = "SẴN SÀNG";
+        statusDot.className = "relative inline-flex rounded-full h-2.5 w-2.5 bg-slate-500";
+        statusPing.className = "hidden";
+      }
+
+      flowText.innerText = s.flow || "Chờ khởi tạo";
+
+      // Left bar
+      document.getElementById('stat-completed-chapters').innerHTML = `${s.completedCount} <span class="text-xs text-slate-500 font-normal">chương</span>`;
+      document.getElementById('stat-total-words').innerText = (s.totalWordCount || 0).toLocaleString();
+      document.getElementById('stat-phase').innerText = s.phase === 'architect' ? 'Kiến trúc sư lập nền tảng' : (s.phase === 'writing' ? 'Đang viết chương' : (s.phase === 'complete' ? 'Hoàn thành' : 'Chờ bắt đầu'));
+      document.getElementById('stat-in-progress').innerText = s.inProgressChapter > 0 ? `Chương ${s.inProgressChapter}` : '-';
+      document.getElementById('stat-cost').innerText = "$" + (s.totalCost || 0.0).toFixed(4);
+
+      // Agent badges & dots
+      updateAgentUI('coordinator', s.isRunning ? 'running' : 'idle', s.isRunning ? 'Running' : 'Idle');
+      updateAgentUI('architect', s.phase === 'architect' ? 'running' : 'idle', s.phase === 'architect' ? 'Planning' : 'Idle');
+      updateAgentUI('writer', s.phase === 'writing' ? 'running' : 'idle', s.phase === 'writing' ? 'Writing' : 'Idle');
+      updateAgentUI('editor', s.phase === 'review' ? 'running' : 'idle', s.phase === 'review' ? 'Reviewing' : 'Idle');
+
+      // Center stream & reasoning
+      if (s.reasoning) {
+        document.getElementById('thinking-content').innerText = s.reasoning;
+      }
+      if (s.thinkingBadge) {
+        document.getElementById('thinking-badge').innerText = s.thinkingBadge;
+      }
+      if (s.streamChapterTitle) {
+        document.getElementById('lbl-chapter-name').innerText = s.streamChapterTitle;
+      }
+      if (s.streamText) {
+        const streamContainer = document.getElementById('stream-text-content');
+        streamContainer.className = "font-reader text-slate-200 leading-relaxed text-sm space-y-3 cursor-blink";
+        try {
+          streamContainer.innerHTML = marked.parse(s.streamText);
+        } catch(e) {
+          streamContainer.innerText = s.streamText;
+        }
+        document.getElementById('stream-words-count').innerText = `${s.streamText.split(/\s+/).length} từ`;
+
+        if (document.getElementById('auto-scroll-chk').checked) {
+          const view = document.getElementById('view-live');
+          view.scrollTop = view.scrollHeight;
+        }
+      }
+
+      // Right: Outline render
+      if (s.outline && s.outline.length > 0) {
+        renderOutlineList(s.outline, s.completedCount, s.inProgressChapter);
+      }
+
+      // Right: Characters render
+      if (s.characters && s.characters.length > 0) {
+        renderCharactersList(s.characters);
+      }
+
+      // Right: Reviews render
+      if (s.reviews && s.reviews.length > 0) {
+        renderReviewsList(s.reviews);
+      }
+
+      // Events timeline
+      if (s.events && s.events.length > 0) {
+        renderEventsList(s.events);
+      }
+    }
+
+    function updateAgentUI(name, state, badgeText) {
+      const dot = document.getElementById(`agent-dot-${name}`);
+      const badge = document.getElementById(`agent-badge-${name}`);
+      if (!dot || !badge) return;
+
+      if (state === 'running') {
+        dot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-pulse";
+        badge.className = "text-[10px] px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 font-mono";
+      } else {
+        dot.className = "w-2 h-2 rounded-full bg-slate-600";
+        badge.className = "text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 font-mono";
+      }
+      badge.innerText = badgeText;
+    }
+
+    function renderOutlineList(outline, completedCount, currentCh) {
+      document.getElementById('lbl-outline-count').innerText = `${outline.length} chương`;
+      const container = document.getElementById('outline-list-container');
+      let html = '';
+      outline.forEach(item => {
+        const isDone = item.chapter <= completedCount;
+        const isCurr = item.chapter === currentCh && !isDone;
+
+        let dotColor = 'bg-slate-700';
+        let bgStyle = 'bg-slate-950/50 border-slate-800/40 text-slate-500';
+        let statusTag = `<span class="text-[10px] text-slate-600 font-mono">Chờ</span>`;
+
+        if (isDone) {
+          dotColor = 'bg-emerald-400';
+          bgStyle = 'bg-slate-900 hover:bg-slate-800/80 border-slate-800 text-slate-200 cursor-pointer';
+          statusTag = `<span class="text-[10px] text-emerald-400 font-mono">Đã xong</span>`;
+        } else if (isCurr) {
+          dotColor = 'bg-amber-400 animate-pulse';
+          bgStyle = 'bg-indigo-950/40 border-indigo-800/60 text-indigo-300 shadow-sm';
+          statusTag = `<span class="text-[10px] text-amber-400 font-mono">Đang viết</span>`;
+        }
+
+        html += `
+          <div onclick="previewChapter(${item.chapter})" class="p-2.5 rounded-lg border ${bgStyle} transition flex items-center justify-between">
+            <div class="flex items-center gap-2 overflow-hidden mr-2">
+              <span class="w-2 h-2 rounded-full shrink-0 ${dotColor}"></span>
+              <span class="text-xs font-medium truncate">Ch. ${item.chapter}: ${item.title}</span>
+            </div>
+            ${statusTag}
+          </div>
+        `;
+      });
+      container.innerHTML = html;
+    }
+
+    function renderCharactersList(chars) {
+      const container = document.getElementById('chars-list-container');
+      let html = '';
+      chars.forEach(c => {
+        let badgeColor = 'bg-slate-800 text-slate-300 border-slate-700';
+        if (c.role && c.role.includes('Chính')) badgeColor = 'bg-emerald-950 text-emerald-400 border-emerald-800';
+        if (c.role && c.role.includes('Phản')) badgeColor = 'bg-rose-950 text-rose-400 border-rose-800';
+
+        html += `
+          <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800 space-y-1">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-200">${c.name}</span>
+              <span class="text-[10px] px-1.5 py-0.2 rounded border ${badgeColor}">${c.role || 'Nhân vật'}</span>
+            </div>
+            <p class="text-[11px] text-slate-400 leading-relaxed">${c.desc || ''}</p>
+          </div>
+        `;
+      });
+      container.innerHTML = html;
+    }
+
+    function renderReviewsList(reviews) {
+      const container = document.getElementById('reviews-list-container');
+      if (!reviews || reviews.length === 0) {
+        container.innerHTML = `
+          <div class="p-6 text-center text-slate-500 text-xs">
+            <i class="fa-solid fa-clipboard-check text-2xl text-slate-700 mb-2 block"></i>
+            Chưa có báo cáo đánh giá.<br>Biên tập viên sẽ thẩm định chất lượng sau mỗi chương truyện.
+          </div>
+        `;
+        return;
+      }
+
+      let html = '';
+      reviews.forEach(r => {
+        const scoreBadge = r.score 
+          ? `<span class="text-[10px] px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 font-bold flex items-center gap-1 shadow-sm">
+               <i class="fa-solid fa-star text-amber-400 text-[9px]"></i> ${r.score}
+             </span>`
+          : `<span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-400 font-bold">Đạt chuẩn</span>`;
+
+        html += `
+          <div class="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-2 transition hover:border-slate-700 shadow-sm">
+            <div class="flex justify-between items-center border-b border-slate-800/80 pb-1.5">
+              <span class="text-xs font-bold text-slate-100 flex items-center gap-1.5">
+                <i class="fa-solid fa-feather-pointed text-indigo-400 text-[10px]"></i>
+                Chương ${r.chapter}: ${r.title}
+              </span>
+              <div class="flex items-center gap-1.5">
+                ${scoreBadge}
+                <button onclick="requestReReview(${r.chapter})" class="text-[10px] px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition flex items-center gap-1" title="Yêu cầu Editor thẩm định lại chương này">
+                  <i class="fa-solid fa-rotate-right text-[9px]"></i>
+                  <span>Thẩm định lại</span>
+                </button>
+              </div>
+            </div>
+            <div class="text-[11px] text-slate-300 leading-relaxed whitespace-pre-wrap font-sans">${r.review}</div>
+          </div>
+        `;
+      });
+      container.innerHTML = html;
+    }
+
+    async function requestReReview(chapterNum) {
+      try {
+        const res = await fetch(`${serverApiBase}/review`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chapter: chapterNum })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          switchRightTab('reviews');
+        } else {
+          alert(data.message || 'Lỗi yêu cầu thẩm định');
+        }
+      } catch (e) {
+        alert('Lỗi kết nối tới máy chủ khi yêu cầu thẩm định');
+      }
+    }
+
+    function renderEventsList(events) {
+      const container = document.getElementById('event-timeline-container');
+      document.getElementById('badge-event-count').innerText = events.length;
+      const colorMap = {
+        'DISPATCH': 'bg-indigo-950 text-indigo-300',
+        'TOOL': 'bg-amber-950 text-amber-300',
+        'REVIEW': 'bg-emerald-950 text-emerald-300',
+        'USER': 'bg-sky-950 text-sky-300',
+        'SYSTEM': 'bg-purple-950 text-purple-300',
+        'ERROR': 'bg-rose-950 text-rose-300'
+      };
+
+      let html = '';
+      events.forEach(ev => {
+        const badgeClass = colorMap[ev.category] || 'bg-slate-800 text-slate-300';
+        html += `
+          <div class="flex items-start gap-2 p-2 rounded bg-slate-900 border border-slate-800">
+            <span class="text-slate-500 text-[10px]">${ev.time}</span>
+            <span class="px-1.5 py-0.2 rounded ${badgeClass} font-bold text-[10px]">${ev.category}</span>
+            <span class="text-slate-300 leading-normal">${ev.summary}</span>
+          </div>
+        `;
+      });
+      container.innerHTML = html;
+    }
+
+    async function previewChapter(num) {
+      switchRightTab('reader');
+      document.getElementById('reader-chapter-title').innerText = `Chương ${num}`;
+      document.getElementById('reader-chapter-body').innerHTML = '<p class="text-slate-400 italic">Đang tải nội dung chương...</p>';
+      try {
+        const res = await fetch(`${serverApiBase}/chapter/${num}`);
+        if (res.ok) {
+          const data = await res.json();
+          document.getElementById('reader-chapter-body').innerHTML = marked.parse(data.content);
+          document.getElementById('reader-meta').innerText = `${data.content.split(/\s+/).length} từ • Đã lưu hoàn chỉnh`;
+        }
+      } catch (err) {}
+    }
+
+    // Modal Cấu hình
+    function openConfigModal() {
+      document.getElementById('modal-config').classList.remove('hidden');
+      selectProvider(currentConfig.provider || "openrouter");
+    }
+
+    function closeConfigModal() {
+      document.getElementById('modal-config').classList.add('hidden');
+    }
+
+    function selectProvider(prov) {
+      selectedProvider = prov;
+      const meta = PROVIDER_METAS[prov] || PROVIDER_METAS.custom;
+
+      Object.keys(PROVIDER_METAS).forEach(k => {
+        const btn = document.getElementById(`pbtn-${k}`);
+        if (!btn) return;
+        if (k === prov) {
+          btn.className = "p-2.5 rounded-xl border border-indigo-500 bg-indigo-950/40 text-left transition flex flex-col justify-between shadow-sm";
+        } else {
+          btn.className = "p-2.5 rounded-xl border border-slate-800 bg-slate-950 hover:bg-slate-800/80 text-left transition flex flex-col justify-between";
+        }
+      });
+
+      document.getElementById('provider-key-name').innerText = meta.keyName;
+      const getKeyLink = document.getElementById('link-get-key');
+      if (meta.getKeyUrl) {
+        getKeyLink.href = meta.getKeyUrl;
+        getKeyLink.classList.remove('hidden');
+      } else {
+        getKeyLink.classList.add('hidden');
+      }
+
+      const curKey = currentConfig.providers?.[prov]?.api_key || "";
+      document.getElementById('input-api-key').value = curKey;
+
+      const curBaseUrl = currentConfig.providers?.[prov]?.base_url || meta.baseUrl || "";
+      document.getElementById('input-base-url').value = curBaseUrl;
+
+      const selectPreset = document.getElementById('select-model-preset');
+      selectPreset.innerHTML = "";
+      meta.presets.forEach(preset => {
+        const opt = document.createElement('option');
+        opt.value = preset.id;
+        opt.innerText = preset.name;
+        selectPreset.appendChild(opt);
+      });
+
+      const curModel = (currentConfig.provider === prov && currentConfig.model) ? currentConfig.model : meta.defaultModel;
+      document.getElementById('input-model-name').value = curModel;
+      selectPreset.value = curModel;
+
+      document.getElementById('role-architect-model').value = currentConfig.roles?.architect?.model || "";
+      document.getElementById('role-writer-model').value = currentConfig.roles?.writer?.model || "";
+      document.getElementById('role-editor-model').value = currentConfig.roles?.editor?.model || "";
+      document.getElementById('role-coordinator-model').value = currentConfig.roles?.coordinator?.model || "";
+    }
+
+    function onModelPresetChange() {
+      const select = document.getElementById('select-model-preset');
+      document.getElementById('input-model-name').value = select.value;
+    }
+
+    function togglePasswordVisibility(inputId, iconId) {
+      const input = document.getElementById(inputId);
+      const icon = document.getElementById(iconId);
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.className = 'fa-solid fa-eye-slash';
+      } else {
+        input.type = 'password';
+        icon.className = 'fa-solid fa-eye';
+      }
+    }
+
+    function toggleRoleSettings() {
+      const sec = document.getElementById('section-role-settings');
+      const chev = document.getElementById('role-chevron');
+      if (sec.classList.contains('hidden')) {
+        sec.classList.remove('hidden');
+        chev.style.transform = 'rotate(180deg)';
+      } else {
+        sec.classList.add('hidden');
+        chev.style.transform = 'rotate(0deg)';
+      }
+    }
+
+    async function saveConfiguration() {
+      const prov = selectedProvider;
+      const key = document.getElementById('input-api-key').value.trim();
+      const baseUrl = document.getElementById('input-base-url').value.trim();
+      const model = document.getElementById('input-model-name').value.trim();
+
+      if (!currentConfig.providers) currentConfig.providers = {};
+      if (!currentConfig.providers[prov]) currentConfig.providers[prov] = {};
+
+      currentConfig.provider = prov;
+      currentConfig.model = model;
+      currentConfig.providers[prov].api_key = key;
+      if (baseUrl) currentConfig.providers[prov].base_url = baseUrl;
+
+      const mArch = document.getElementById('role-architect-model').value.trim();
+      const mWrite = document.getElementById('role-writer-model').value.trim();
+      const mEdit = document.getElementById('role-editor-model').value.trim();
+      const mCoord = document.getElementById('role-coordinator-model').value.trim();
+
+      if (!currentConfig.roles) currentConfig.roles = {};
+      if (mArch) currentConfig.roles.architect = { provider: prov, model: mArch }; else delete currentConfig.roles.architect;
+      if (mWrite) currentConfig.roles.writer = { provider: prov, model: mWrite }; else delete currentConfig.roles.writer;
+      if (mEdit) currentConfig.roles.editor = { provider: prov, model: mEdit }; else delete currentConfig.roles.editor;
+      if (mCoord) currentConfig.roles.coordinator = { provider: prov, model: mCoord }; else delete currentConfig.roles.coordinator;
+
+      localStorage.setItem('ainovel_config', JSON.stringify(currentConfig));
+
+      const statusMsg = document.getElementById('save-status-msg');
+      statusMsg.innerText = "Đang lưu cấu hình...";
+      try {
+        const res = await fetch(`${serverApiBase}/config`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(currentConfig)
+        });
+        if (res.ok) {
+          statusMsg.innerText = "✓ Đã lưu cấu hình thành công!";
+          statusMsg.className = "text-[11px] text-emerald-400 font-semibold";
+        }
+      } catch (err) {
+        statusMsg.innerText = "✓ Đã lưu vào bộ nhớ trình duyệt!";
+        statusMsg.className = "text-[11px] text-emerald-400 font-semibold";
+      }
+
+      applyConfigToUI();
+
+      setTimeout(() => {
+        closeConfigModal();
+        statusMsg.innerText = "Cấu hình sẽ được lưu vào ~/.ainovel/config.json";
+        statusMsg.className = "text-[11px] text-slate-500";
+      }, 1000);
+    }
+
+    // Modal Tạo truyện mới
+    function openNewNovelModal() { document.getElementById('modal-new-novel').classList.remove('hidden'); }
+    function closeNewNovelModal() { document.getElementById('modal-new-novel').classList.add('hidden'); }
+    function openExportModal() { document.getElementById('modal-export').classList.remove('hidden'); }
+    function closeExportModal() { document.getElementById('modal-export').classList.add('hidden'); }
+
+    async function startNewNovel() {
+      const prompt = document.getElementById('new-prompt').value.trim();
+      const style = document.getElementById('new-style').value;
+      if (!prompt) {
+        alert('Vui lòng nhập yêu cầu hoặc tóm tắt cốt truyện!');
+        return;
+      }
+
+      const curProv = currentConfig.provider || "openrouter";
+      const hasKey = currentConfig.providers?.[curProv]?.api_key;
+      if (curProv !== 'ollama' && (!hasKey || hasKey.trim().length === 0)) {
+        if (confirm(`Bạn chưa nhập API Key cho ${curProv}. Bạn có muốn mở cửa sổ cấu hình API Key ngay không?`)) {
+          closeNewNovelModal();
+          openConfigModal();
+          return;
+        }
+      }
+
+      closeNewNovelModal();
+
+      document.getElementById('status-text').innerText = "ĐANG CHẠY";
+      document.getElementById('status-dot').className = "relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500";
+      document.getElementById('status-ping').className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75";
+      document.getElementById('flow-text').innerText = "Kiến trúc sư đang phân tích";
+      document.getElementById('thinking-content').innerText = `Đang gửi yêu cầu sang AI Engine: "${prompt.slice(0, 100)}..."`;
+      document.getElementById('stream-text-content').innerHTML = `<p class="italic text-slate-400">Đang khởi động AI Engine...</p>`;
+
+      try {
+        await fetch(`${serverApiBase}/start`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: prompt, style: style })
+        });
+      } catch (err) {
+        alert('Lỗi kết nối tới server. Vui lòng kiểm tra lại server.py đang chạy!');
+      }
+    }
+
+    async function handlePauseContinue() {
+      const action = isPaused ? "resume" : "pause";
+      try {
+        await fetch(`${serverApiBase}/pause`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: action })
+        });
+      } catch (err) {}
+    }
+
+    function fillSteer(text) {
+      document.getElementById('steer-input').value = text;
+      document.getElementById('steer-input').focus();
+    }
+
+    async function submitSteer() {
+      const input = document.getElementById('steer-input');
+      const text = input.value.trim();
+      if (!text) return;
+
+      try {
+        await fetch(`${serverApiBase}/steer`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: text })
+        });
+      } catch (err) {}
+
+      input.value = '';
+    }
+
+    function doExport() {
+      window.open(`${serverApiBase}/export/${activeStoryId}`, '_blank');
+      closeExportModal();
+    }
+
+    function switchCenterTab(tab) {
+      const liveBtn = document.getElementById('tab-live-btn');
+      const logBtn = document.getElementById('tab-log-btn');
+      const viewLive = document.getElementById('view-live');
+      const viewLog = document.getElementById('view-log');
+
+      if (tab === 'live') {
+        liveBtn.className = 'px-3 py-1 text-xs font-medium rounded-md transition text-indigo-300 bg-slate-800 border border-slate-700/80 flex items-center gap-1.5';
+        logBtn.className = 'px-3 py-1 text-xs font-medium rounded-md transition text-slate-400 hover:text-slate-200 hover:bg-slate-900 flex items-center gap-1.5';
+        viewLive.classList.remove('hidden');
+        viewLog.classList.add('hidden');
+      } else {
+        logBtn.className = 'px-3 py-1 text-xs font-medium rounded-md transition text-indigo-300 bg-slate-800 border border-slate-700/80 flex items-center gap-1.5';
+        liveBtn.className = 'px-3 py-1 text-xs font-medium rounded-md transition text-slate-400 hover:text-slate-200 hover:bg-slate-900 flex items-center gap-1.5';
+        viewLog.classList.remove('hidden');
+        viewLive.classList.add('hidden');
+      }
+    }
+
+    function switchRightTab(tab) {
+      const tabs = ['outline', 'reader', 'chars', 'reviews'];
+      tabs.forEach(t => {
+        const btn = document.getElementById(`rtab-${t}-btn`);
+        const view = document.getElementById(`rview-${t}`);
+        if (t === tab) {
+          btn.className = 'px-2.5 py-1 text-xs font-medium rounded-md text-indigo-300 bg-slate-800 border border-slate-700';
+          view.classList.remove('hidden');
+        } else {
+          btn.className = 'px-2.5 py-1 text-xs font-medium rounded-md text-slate-400 hover:text-slate-200';
+          view.classList.add('hidden');
+        }
+      });
+    }
+
+    document.getElementById('steer-input').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        submitSteer();
+      }
+    });
+  </script>
+</body>
+</html>
