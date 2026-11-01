@@ -13,24 +13,25 @@ Công cụ CLI sáng tác tiểu thuyết dài kỳ hoàn toàn tự động b�
 ## Mục lục
 
 1. [Tính năng nổi bật](#tính-năng-nổi-bật)
-2. [Kiến trúc hệ thống](#kiến-trúc-hệ-thống)
-3. [Yêu cầu hệ thống](#yêu-cầu-hệ-thống)
-4. [Cài đặt nhanh](#cài-đặt-nhanh)
+2. [Giao diện Web GUI (AInovel Studio)](#giao-diện-web-gui-ainovel-studio)
+3. [Kiến trúc hệ thống](#kiến-trúc-hệ-thống)
+4. [Yêu cầu hệ thống](#yêu-cầu-hệ-thống)
+5. [Cài đặt nhanh](#cài-đặt-nhanh)
    - [Docker (khuyến nghị)](#docker-khuyến-nghị)
    - [Build từ source](#build-từ-source)
-5. [Cấu hình](#cấu-hình)
+6. [Cấu hình](#cấu-hình)
    - [Ollama (local, miễn phí)](#ollama-local-miễn-phí)
    - [OpenRouter](#openrouter)
    - [Anthropic / OpenAI](#anthropic--openai)
    - [Cấu hình nhiều model theo vai trò](#cấu-hình-nhiều-model-theo-vai-trò)
-6. [Bắt đầu viết](#bắt-đầu-viết)
-7. [Lệnh TUI](#lệnh-tui)
-8. [Can thiệp thời gian thực](#can-thiệp-thời-gian-thực)
-9. [Phong cách và quy tắc tuỳ chỉnh](#phong-cách-và-quy-tắc-tuỳ-chỉnh)
-10. [Khôi phục sau gián đoạn](#khôi-phục-sau-gián-đoạn)
-11. [Cấu trúc thư mục output](#cấu-trúc-thư-mục-output)
-12. [Xuất truyện](#xuất-truyện)
-13. [Troubleshooting](#troubleshooting)
+7. [Bắt đầu viết](#bắt-đầu-viết)
+8. [Lệnh TUI](#lệnh-tui)
+9. [Can thiệp thời gian thực](#can-thiệp-thời-gian-thực)
+10. [Phong cách và quy tắc tuỳ chỉnh](#phong-cách-và-quy-tắc-tuỳ-chỉnh)
+11. [Khôi phục sau gián đoạn](#khôi-phục-sau-gián-đoạn)
+12. [Cấu trúc thư mục output](#cấu-trúc-thư-mục-output)
+13. [Xuất truyện](#xuất-truyện)
+14. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -47,6 +48,29 @@ Công cụ CLI sáng tác tiểu thuyết dài kỳ hoàn toàn tự động b�
 | **Đánh giá 7 chiều** | Biên tập viên đánh giá: tính nhất quán, nhân vật, nhịp truyện, mạch kể, phục bút, điểm móc, thẩm mỹ |
 | **Chống văn phong AI** | Bộ tiêu chí cơ học + ngữ nghĩa tích hợp sẵn, tự động kiểm tra khi lưu chương |
 | **Nhiều nhà cung cấp LLM** | OpenRouter, Anthropic, Gemini, OpenAI, Deepseek, Ollama (local), và proxy tuỳ chỉnh |
+| **Giao diện Web Studio** | Trực quan trên trình duyệt (localhost:8080): live stream văn bản, reasoning, cấu hình API, quản lý thư viện truyện |
+
+---
+
+## Giao diện Web GUI (AInovel Studio)
+
+Bên cạnh giao diện dòng lệnh CLI / TUI, dự án đã tích hợp sẵn giao diện đồ hoạ web **AInovel Studio** hiện đại, trực quan trên trình duyệt:
+
+```bash
+# Khởi động Web GUI server (cổng 8080)
+python gui/server.py
+```
+
+Truy cập: `http://localhost:8080`
+Xem chi tiết hướng dẫn tại [gui/README.md](gui/README.md).
+
+**Các tính năng nổi bật của Web GUI:**
+- 🔑 **Cấu hình Model & API Key trực quan**: Dễ dàng chuyển đổi giữa OpenRouter, Gemini, Anthropic, OpenAI, DeepSeek, Ollama; hỗ trợ phân vai model riêng biệt (Architect, Writer, Editor, Coordinator).
+- 📚 **Thư viện Tác phẩm & Quản lý Truyện**: Xem danh sách truyện, chuyển đổi qua lại, tải bản thảo TXT hoặc xoá tác phẩm trực tiếp từ giao diện.
+- ⚡ **Live Stream & Suy luận thời gian thực**: Quan sát dòng suy nghĩ (Reasoning) của từng Agent và theo dõi chương truyện đang được soạn thảo trực tiếp.
+- 🎯 **Can thiệp tức thì (Real-time Steering)**: Gửi chỉ đạo và định hướng cho AI ngay trong khi AI đang viết mà không cần ngắt quãng.
+- 📖 **Đề cương, Reader & Hồ sơ nhân vật**: Tra cứu cây đề cương toàn bộ các chương, đọc lại các chương đã lưu và hệ thống nhân vật.
+- 🧐 **Biên tập viên (Editor)**: Thẩm định văn phong 7 chiều, hiển thị thang điểm chất lượng và nút yêu cầu thẩm định lại (Re-review).
 
 ---
 
@@ -124,18 +148,18 @@ docker run --rm -it \
 
 # Windows (PowerShell)
 docker run --rm -it `
-  -v "${PWD}\config:/root/.ainovel" `
-  -v "${PWD}\workspace:/workspace" `
+  -v "${PWD}config:/root/.ainovel" `
+  -v "${PWD}workspace:/workspace" `
   -e TERM=xterm-256color `
   ainovel-cli-vi
 
 # Windows (Command Prompt)
-docker run --rm -it -v "%CD%\config:/root/.ainovel" -v "%CD%\workspace:/workspace" -e TERM=xterm-256color ainovel-cli-vi
+docker run --rm -it -v "%CD%config:/root/.ainovel" -v "%CD%workspace:/workspace" -e TERM=xterm-256color ainovel-cli-vi
 ```
 
 > **Windows Terminal**: Mở tab mới tự động —
 > ```powershell
-> Start-Process "wt.exe" -ArgumentList "new-tab", "cmd", "/k", 'docker run --rm -it -v "%CD%\config:/root/.ainovel" -v "%CD%\workspace:/workspace" -e TERM=xterm-256color ainovel-cli-vi'
+> Start-Process "wt.exe" -ArgumentList "new-tab", "cmd", "/k", 'docker run --rm -it -v "%CD%config:/root/.ainovel" -v "%CD%workspace:/workspace" -e TERM=xterm-256color ainovel-cli-vi'
 > ```
 
 **Chế độ không giao diện** (headless, chạy trên server):
@@ -461,7 +485,7 @@ workspace/output/novel/
 rm -rf workspace/output/
 
 # Windows PowerShell
-Remove-Item -Recurse -Force workspace\output\
+Remove-Item -Recurse -Force workspace\output
 ```
 
 ---
